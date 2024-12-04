@@ -96,7 +96,8 @@ func handleConnection(conn net.Conn) {
 		response.Status = "404"
 		response.Message = "Not Found"
 	}
-	conn.Write([]byte("HTTP/1.1" + " " + response.Status + " " + response.Message + CRLF + CRLF + response.Headers + CRLF + response.Body))
+	finalResponse := "HTTP/1.1" + " " + response.Status + " " + response.Message + CRLF + response.Headers + CRLF + response.Body
+	conn.Write([]byte(finalResponse))
 
 	conn.Close()
 }
