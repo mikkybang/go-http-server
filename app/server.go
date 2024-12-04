@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -16,11 +17,20 @@ var (
 	_ = os.Exit
 )
 
+const CRLF = "\r\n"
+
 type HttpRequest struct {
-	method      string
-	path        string
-	httpVersion string
-	headers     interface{}
+	Method      string
+	Path        string
+	HttpVersion string
+	Headers     map[string]string
+}
+
+type HttpResponse struct {
+	Status  string
+	Headers string
+	Body    string
+	Message string
 }
 
 func main() {
@@ -47,39 +57,78 @@ func main() {
 func handleConnection(conn net.Conn) {
 	buff := make([]byte, 1024)
 
-	for {
-		_, err := conn.Read(buff)
-		if err != nil {
-			fmt.Println("Error occured while reading connection buf", err.Error())
-			if errors.Is(err, io.EOF) {
-				fmt.Println("eof from ParseCommand")
-				break
-			}
+	_, err := conn.Read(buff)
+	if err != nil {
+		fmt.Println("Error occured while reading connection buf", err.Error())
+		if errors.Is(err, io.EOF) {
+			fmt.Println("eof from ParseCommand")
+			return
+		}
+		return
+	}
+
+	request, err := parseRequest(string(buff))
+	if err != nil {
+		fmt.Println("Error occured while parsing request")
+	}
+
+	response := HttpResponse{}
+
+	switch {
+	case request.Path == "/":
+		response.Status = "200"
+		response.Message = "OK"
+	case strings.Contains(request.Path, "echo"):
+		params := strings.SplitN(request.Path, "/", 3)
+		// response := params[2]
+		response.Status = "200"
+		response.Message = "OK"
+		headers := make(map[string]string)
+		headers["Content-Type"] = "text/plain"
+		headers["Content-Length"] = strconv.Itoa(len(params[2]))
+		response.Headers = parseResponseHeaders(headers)
+
+		fmt.Println(headers)
+		s := fmt.Sprintf("%v", headers)
+		fmt.Println(s)
+		response.Body = params[2]
+	default:
+		response.Status = "404"
+		response.Message = "Not Found"
+	}
+	conn.Write([]byte("HTTP/1.1" + " " + response.Status + " " + response.Message + CRLF + CRLF + response.Headers + CRLF + response.Body))
+
+	conn.Close()
+}
+
+func parseRequest(request string) (HttpRequest, error) {
+	fmt.Println(request)
+	parsedRequest := HttpRequest{}
+
+	parts := strings.Split(request, CRLF)
+
+	requestLine := strings.Split(parts[0], " ")
+	parsedRequest.Method = requestLine[0]
+	parsedRequest.Path = requestLine[1]
+	parsedRequest.HttpVersion = requestLine[2]
+
+	headers := make(map[string]string)
+	for _, data := range parts[1:] {
+		if data == "" {
 			break
 		}
-		fmt.Println(string(buff))
-		parts := bytes.Split(buff, []byte("\r\n"))
-		var requestPath string
-
-		for index, part := range parts {
-			if index == 0 {
-				request := strings.Split(string(part), " ")
-				requestPath = request[1]
-				fmt.Println(requestPath)
-			}
-		}
-		var status string
-		var message string
-		switch requestPath {
-		case "/":
-			status = "200"
-			message = "OK"
-		default:
-			status = "404"
-			message = "Not Found"
-		}
-		conn.Write([]byte("HTTP/1.1" + " " + status + " " + message + "\r\n\r\n"))
-
-		conn.Close()
+		singleHeader := strings.SplitN(data, ":", 2)
+		headers[singleHeader[0]] = singleHeader[1]
 	}
+	parsedRequest.Headers = headers
+
+	return parsedRequest, nil
+}
+
+func parseResponseHeaders(headers map[string]string) string {
+	b := new(bytes.Buffer)
+	for key, value := range headers {
+		fmt.Fprintf(b, "%s: %s"+CRLF, key, value)
+	}
+	return b.String()
 }
