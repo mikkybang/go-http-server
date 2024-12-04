@@ -68,11 +68,18 @@ func handleConnection(conn net.Conn) {
 				fmt.Println(requestPath)
 			}
 		}
-		if requestPath == "/" {
-			conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-		} else {
-			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		var status string
+		var message string
+		switch requestPath {
+		case "/":
+			status = "200"
+			message = "OK"
+		default:
+			status = "404"
+			message = "Not Found"
 		}
+		conn.Write([]byte("HTTP/1.1" + " " + status + " " + message + "\r\n\r\n"))
+
 		conn.Close()
 	}
 }
