@@ -72,31 +72,35 @@ func handleConnection(conn net.Conn) {
 		fmt.Println("Error occured while parsing request")
 	}
 
-	response := HttpResponse{}
+	response := HttpResponse{
+		Status:  "200",
+		Message: "OK",
+	}
 
+	headers := make(map[string]string)
 	switch {
 	case request.Path == "/":
 		response.Status = "200"
 		response.Message = "OK"
 	case strings.Contains(request.Path, "echo"):
 		params := strings.SplitN(request.Path, "/", 3)
-		// response := params[2]
-		response.Status = "200"
-		response.Message = "OK"
-		headers := make(map[string]string)
 		headers["Content-Type"] = "text/plain"
 		headers["Content-Length"] = strconv.Itoa(len(params[2]))
-		response.Headers = parseResponseHeaders(headers)
-
-		fmt.Println(headers)
-		s := fmt.Sprintf("%v", headers)
-		fmt.Println(s)
 		response.Body = params[2]
+	case request.Path == "/user-agent":
+		userAgent := request.Headers["User-Agent"]
+		fmt.Println(userAgent)
+		headers["Content-Type"] = "text/plain"
+		headers["Content-Length"] = strconv.Itoa(len(userAgent))
+		response.Body = userAgent
 	default:
 		response.Status = "404"
 		response.Message = "Not Found"
 	}
+
+	response.Headers = parseResponseHeaders(headers)
 	finalResponse := "HTTP/1.1" + " " + response.Status + " " + response.Message + CRLF + response.Headers + CRLF + response.Body
+	fmt.Println(finalResponse)
 	conn.Write([]byte(finalResponse))
 
 	conn.Close()
@@ -119,7 +123,7 @@ func parseRequest(request string) (HttpRequest, error) {
 			break
 		}
 		singleHeader := strings.SplitN(data, ":", 2)
-		headers[singleHeader[0]] = singleHeader[1]
+		headers[singleHeader[0]] = strings.Trim(singleHeader[1], " ")
 	}
 	parsedRequest.Headers = headers
 
