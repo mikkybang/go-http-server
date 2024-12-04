@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -46,6 +48,10 @@ func main() {
 			_, err := conn.Read(buff)
 			if err != nil {
 				fmt.Println("Error occured while reading connection buf", err.Error())
+				if errors.Is(err, io.EOF) {
+					fmt.Println("eof from ParseCommand")
+					break
+				}
 				os.Exit(1)
 			}
 			fmt.Println(string(buff))
