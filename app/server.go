@@ -131,7 +131,8 @@ func handleConnection(conn net.Conn) {
 				response.Status = "404"
 				response.Message = "Not Found"
 			} else {
-				err := os.WriteFile(defaultFileDir+fileName, []byte(request.Body), 0666)
+				file, err := os.Create(defaultFileDir + fileName)
+				file.Write([]byte(request.Body))
 				if err != nil {
 					fmt.Println("Error Occured while saving file")
 					fmt.Println(err)
