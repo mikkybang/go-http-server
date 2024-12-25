@@ -94,7 +94,8 @@ func handleConnection(conn net.Conn) {
 		response.Body = userAgent
 	case strings.Contains(request.Path, "files"):
 		params := strings.SplitN(request.Path, "/", 3)
-		fileName := params[2]
+		fileName := strings.Join(params[2:], "/")
+		fmt.Println(fileName)
 		if fileName == "" {
 			response.Status = "404"
 			response.Message = "Not Found"
