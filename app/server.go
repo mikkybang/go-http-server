@@ -131,8 +131,10 @@ func handleConnection(conn net.Conn) {
 				response.Status = "404"
 				response.Message = "Not Found"
 			} else {
+				fmt.Println(request.Body)
+				fileBuffer := []byte(request.Body)
 				file, err := os.Create(defaultFileDir + fileName)
-				file.Write([]byte(request.Body))
+				file.Write(bytes.Trim(fileBuffer, "\x00"))
 				file.Close()
 				if err != nil {
 					fmt.Println("Error Occured while saving file")
@@ -175,10 +177,6 @@ func parseRequest(request string) (HttpRequest, error) {
 	headers := make(map[string]string)
 
 	for index, data := range parts[1:] {
-		if data == CRLF {
-			fmt.Println("Hit Line Break")
-			break
-		}
 		if data == "" {
 			if len(parts) >= index+2 {
 				parsedRequest.Body = requestBodyParser(parts[index+2:], headers["Content-Type"])
@@ -207,7 +205,7 @@ func requestBodyParser(body []string, contentType string) string {
 	}
 	switch contentType {
 	case "application/octet-stream":
-		return strings.Join(body, CRLF)
+		return strings.TrimRight(strings.Join(body, CRLF), CRLF)
 	default:
 		return ""
 	}
