@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -33,9 +34,20 @@ type HttpResponse struct {
 	Message string
 }
 
+var defaultFileDir = "tmp"
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
+
+	fileDirFlag := flag.String("directory", "", "This allows you to specify a directory for files")
+
+	flag.Parse()
+
+	if *fileDirFlag != "" {
+		fmt.Println(*fileDirFlag)
+		defaultFileDir = *fileDirFlag
+	}
 
 	// Uncomment this block to pass the first stage
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -100,7 +112,7 @@ func handleConnection(conn net.Conn) {
 			response.Status = "404"
 			response.Message = "Not Found"
 		} else {
-			fileBuff, err := os.ReadFile("/tmp/" + fileName)
+			fileBuff, err := os.ReadFile(defaultFileDir + fileName)
 			if err != nil {
 				fmt.Println(err)
 				response.Status = "404"
