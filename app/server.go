@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -53,11 +54,11 @@ func main() {
 
 	// Uncomment this block to pass the first stage
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
-	defer l.Close()
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
 		os.Exit(1)
 	}
+	defer l.Close()
 
 	for {
 		conn, err := l.Accept()
@@ -162,13 +163,22 @@ func handleConnection(conn net.Conn) {
 			if strings.TrimSpace(value) == "gzip" {
 				headers["Content-Encoding"] = "gzip"
 				var writerBuffer bytes.Buffer
-				_, err := gzip.NewWriter(&writerBuffer).Write([]byte(response.Body))
+				zw := gzip.NewWriter(&writerBuffer)
+				_, err := zw.Write([]byte(response.Body))
+				if err := zw.Close(); err != nil {
+					log.Fatal(err)
+					response.Status = "500"
+					response.Message = "Internal Server Error"
+					break
+				}
 				if err != nil {
 					fmt.Println("Error Occured while compressing data")
 					response.Status = "500"
 					response.Message = "Internal Server Error"
+					break
 				}
 				response.Body = writerBuffer.String()
+				headers["Content-Length"] = strconv.Itoa(len(response.Body))
 				break
 			}
 		}
