@@ -25,6 +25,7 @@ type HttpRequest struct {
 	Path        string
 	HttpVersion string
 	Headers     map[string]string
+	Body        string
 }
 
 type HttpResponse struct {
@@ -34,7 +35,7 @@ type HttpResponse struct {
 	Message string
 }
 
-var defaultFileDir = "tmp"
+var defaultFileDir = "/tmp/"
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -107,22 +108,43 @@ func handleConnection(conn net.Conn) {
 	case strings.Contains(request.Path, "files"):
 		params := strings.SplitN(request.Path, "/", 3)
 		fileName := strings.Join(params[2:], "/")
-		fmt.Println(fileName)
-		if fileName == "" {
-			response.Status = "404"
-			response.Message = "Not Found"
-		} else {
-			fileBuff, err := os.ReadFile(defaultFileDir + fileName)
-			if err != nil {
-				fmt.Println(err)
+		switch request.Method {
+		case "GET":
+			if fileName == "" {
 				response.Status = "404"
 				response.Message = "Not Found"
 			} else {
-				response.Body = string(fileBuff)
-				response.Status = "200"
-				headers["Content-Type"] = "application/octet-stream"
-				headers["Content-Length"] = strconv.Itoa(len(fileBuff))
+				fileBuff, err := os.ReadFile(defaultFileDir + fileName)
+				if err != nil {
+					fmt.Println(err)
+					response.Status = "404"
+					response.Message = "Not Found"
+				} else {
+					response.Body = string(fileBuff)
+					response.Status = "200"
+					headers["Content-Type"] = "application/octet-stream"
+					headers["Content-Length"] = strconv.Itoa(len(fileBuff))
+				}
 			}
+		case "POST":
+			if fileName == "" {
+				response.Status = "404"
+				response.Message = "Not Found"
+			} else {
+				err := os.WriteFile(defaultFileDir+fileName, []byte(request.Body), 0666)
+				if err != nil {
+					fmt.Println("Error Occured while saving file")
+					fmt.Println(err)
+					response.Status = "400"
+					response.Message = "Error Occured while saving file"
+				} else {
+					response.Status = "201"
+					response.Message = "Created"
+				}
+			}
+		default:
+			response.Status = "405"
+			response.Body = "Method not allowed"
 		}
 	default:
 		response.Status = "404"
@@ -138,7 +160,7 @@ func handleConnection(conn net.Conn) {
 }
 
 func parseRequest(request string) (HttpRequest, error) {
-	fmt.Println(request)
+	// fmt.Println(request)
 	parsedRequest := HttpRequest{}
 
 	parts := strings.Split(request, CRLF)
@@ -149,8 +171,16 @@ func parseRequest(request string) (HttpRequest, error) {
 	parsedRequest.HttpVersion = requestLine[2]
 
 	headers := make(map[string]string)
-	for _, data := range parts[1:] {
+
+	for index, data := range parts[1:] {
+		if data == CRLF {
+			fmt.Println("Hit Line Break")
+			break
+		}
 		if data == "" {
+			if len(parts) >= index+2 {
+				parsedRequest.Body = requestBodyParser(parts[index+2:], headers["Content-Type"])
+			}
 			break
 		}
 		singleHeader := strings.SplitN(data, ":", 2)
@@ -167,4 +197,16 @@ func parseResponseHeaders(headers map[string]string) string {
 		fmt.Fprintf(b, "%s: %s"+CRLF, key, value)
 	}
 	return b.String()
+}
+
+func requestBodyParser(body []string, contentType string) string {
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	switch contentType {
+	case "application/octet-stream":
+		return strings.Join(body, CRLF)
+	default:
+		return ""
+	}
 }
