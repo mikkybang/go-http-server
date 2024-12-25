@@ -117,11 +117,12 @@ func handleConnection(conn net.Conn) {
 				fmt.Println(err)
 				response.Status = "404"
 				response.Message = "Not Found"
+			} else {
+				response.Body = string(fileBuff)
+				response.Status = "200"
+				headers["Content-Type"] = "application/octet-stream"
+				headers["Content-Length"] = strconv.Itoa(len(fileBuff))
 			}
-			response.Body = string(fileBuff)
-			response.Status = "200"
-			headers["Content-Type"] = "application/octet-stream"
-			headers["Content-Length"] = strconv.Itoa(len(fileBuff))
 		}
 	default:
 		response.Status = "404"
