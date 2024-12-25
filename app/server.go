@@ -133,6 +133,7 @@ func handleConnection(conn net.Conn) {
 			} else {
 				file, err := os.Create(defaultFileDir + fileName)
 				file.Write([]byte(request.Body))
+				defer file.Close()
 				if err != nil {
 					fmt.Println("Error Occured while saving file")
 					fmt.Println(err)
