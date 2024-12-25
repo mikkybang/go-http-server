@@ -89,10 +89,27 @@ func handleConnection(conn net.Conn) {
 		response.Body = params[2]
 	case request.Path == "/user-agent":
 		userAgent := request.Headers["User-Agent"]
-		fmt.Println(userAgent)
 		headers["Content-Type"] = "text/plain"
 		headers["Content-Length"] = strconv.Itoa(len(userAgent))
 		response.Body = userAgent
+	case strings.Contains(request.Path, "files"):
+		params := strings.SplitN(request.Path, "/", 3)
+		fileName := params[2]
+		if fileName == "" {
+			response.Status = "404"
+			response.Message = "Not Found"
+		} else {
+			fileBuff, err := os.ReadFile("/tmp/" + fileName)
+			if err != nil {
+				fmt.Println(err)
+				response.Status = "404"
+				response.Message = "Not Found"
+			}
+			response.Body = string(fileBuff)
+			response.Status = "200"
+			headers["Content-Type"] = "application/octet-stream"
+			headers["Content-Length"] = strconv.Itoa(len(fileBuff))
+		}
 	default:
 		response.Status = "404"
 		response.Message = "Not Found"
