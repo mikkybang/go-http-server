@@ -35,10 +35,7 @@ type HttpResponse struct {
 	Message string
 }
 
-var (
-	defaultFileDir         = "/tmp/"
-	allowedCompressionType = [1]string{"gzip"}
-)
+var defaultFileDir = "/tmp/"
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -158,9 +155,11 @@ func handleConnection(conn net.Conn) {
 		response.Message = "Not Found"
 	}
 	if request.Headers["Accept-Encoding"] != "" {
-		for _, value := range allowedCompressionType {
-			if strings.ToLower(request.Headers["Accept-Encoding"]) == value {
-				headers["Content-Encoding"] = value
+		fmt.Println("Compression Types")
+		fmt.Println(request.Headers["Accept-Encoding"])
+		for _, value := range strings.Split(request.Headers["Accept-Encoding"], ",") {
+			if strings.TrimSpace(value) == "gzip" {
+				headers["Content-Encoding"] = "gzip"
 			}
 		}
 	}
