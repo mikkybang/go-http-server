@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"flag"
 	"fmt"
@@ -160,6 +161,15 @@ func handleConnection(conn net.Conn) {
 		for _, value := range strings.Split(request.Headers["Accept-Encoding"], ",") {
 			if strings.TrimSpace(value) == "gzip" {
 				headers["Content-Encoding"] = "gzip"
+				var writerBuffer bytes.Buffer
+				_, err := gzip.NewWriter(&writerBuffer).Write([]byte(response.Body))
+				if err != nil {
+					fmt.Println("Error Occured while compressing data")
+					response.Status = "500"
+					response.Message = "Internal Server Error"
+				}
+				response.Body = writerBuffer.String()
+				break
 			}
 		}
 	}
